@@ -3,6 +3,15 @@ using DelimitedFiles
 using Dierckx
 using Thermodynamics
 using Dates
+using StatsBase
+import ClimaLSM
+import ClimaLSM.Parameters as LSMP
+include(joinpath(pkgdir(ClimaLSM), "parameters", "create_parameters.jl"))
+const FT = Float64
+earth_param_set = create_lsm_parameters(FT)
+climalsm_dir = pkgdir(ClimaLSM)
+
+
 function replace_missing_with_mean!(field, flag)
     good_indices = (flag .== 0) .|| (flag .== 1)
     fill_value = mean(field[good_indices])

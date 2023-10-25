@@ -420,13 +420,22 @@ function ClimaLSM.make_update_aux(
         β = p.canopy.hydraulics.β
         medlyn_factor = p.canopy.conductance.medlyn_term
         gs = p.canopy.conductance.gs
+        T_air_out = p.canopy.conductance.T_air_out
+        q_air_out = p.canopy.conductance.q_air_out
+        c_co2_air_out = p.canopy.conductance.c_co2_air_out
+        LAI_out = p.canopy.conductance.LAI_out
+        P_air_out=p.canopy.conductance.P_air_out
         transpiration = p.canopy.conductance.transpiration
+        surface_resistance =  p.canopy.conductance.surface_resistance
+        aerodynamic_resistance =  p.canopy.conductance.aerodynamic_resistance
+        evaporation=  p.canopy.conductance.evaporation
         An = p.canopy.photosynthesis.An
         GPP = p.canopy.photosynthesis.GPP
         Rd = p.canopy.photosynthesis.Rd
         ψ = p.canopy.hydraulics.ψ
         ϑ_l = Y.canopy.hydraulics.ϑ_l
         fa = p.canopy.hydraulics.fa
+        ρ_l_cloud = p.canopy.conductance.ρ_l_cloud
 
 
         #unpack parameters         
@@ -567,6 +576,11 @@ function ClimaLSM.make_update_aux(
             )
         @. GPP = compute_GPP(An, K, LAI, Ω)
         @. gs = medlyn_conductance(g0, Drel, medlyn_factor, An, c_co2_air)
+        @. T_air_out = T_air
+        @. q_air_out= q_air
+        @. c_co2_air_out = c_co2_air
+        @. LAI_out= LAI
+        @. P_air_out= P_air
         # update autotrophic respiration
         @. Ra = compute_autrophic_respiration(
             canopy.autotrophic_respiration,
@@ -579,9 +593,14 @@ function ClimaLSM.make_update_aux(
             h,
         )
         # Compute transpiration using T_canopy
-        (canopy_transpiration, shf, lhf) =
+        (canopy_transpiration, shf, lhf,r_ae,r_sfc,E0,ρ_liq) =
             canopy_surface_fluxes(canopy.atmos, canopy, Y, p, t)
         transpiration .= canopy_transpiration
+        surface_resistance .= r_sfc
+        aerodynamic_resistance .= r_ae
+        evaporation .= E0
+        ρ_l_cloud .= ρ_liq
+
         # Transpiration is per unit ground area, not leaf area (mult by LAI)
         fa.:($i_end) .= PlantHydraulics.transpiration_per_ground_area(
             hydraulics.transpiration,
@@ -639,7 +658,7 @@ function canopy_surface_fluxes(
     t::FT,
 ) where {FT}
     conditions = surface_fluxes(atmos, model, Y, p, t) # per unit m^2 of leaf
-    return conditions.vapor_flux, conditions.shf, conditions.lhf
+    return conditions.vapor_flux, conditions.shf, conditions.lhf,conditions.r_ae,conditions.r_sfc, conditions.E0, conditions.ρ_liq
 end
 
 """

@@ -43,8 +43,9 @@ end
 
 ClimaLSM.name(model::AbstractStomatalConductanceModel) = :conductance
 ClimaLSM.auxiliary_vars(model::MedlynConductanceModel) =
-    (:medlyn_term, :gs, :transpiration)
+    (:medlyn_term, :gs, :transpiration, :surface_resistance, :aerodynamic_resistance, :evaporation, :ρ_l_cloud,:T_air_out,:q_air_out,
+    :c_co2_air_out,:LAI_out,:P_air_out)
 ClimaLSM.auxiliary_types(model::MedlynConductanceModel{FT}) where {FT} =
-    (FT, FT, FT)
+    (FT, FT, FT,FT,FT,FT,FT,FT, FT,FT,FT,FT)
 ClimaLSM.auxiliary_domain_names(::MedlynConductanceModel) =
-    (:surface, :surface, :surface)
+    (:surface, :surface, :surface, :surface,:surface,:surface,:surface,:surface,:surface,:surface,:surface,:surface)

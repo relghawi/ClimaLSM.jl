@@ -250,7 +250,7 @@ function surface_fluxes_at_a_point(
     Ẽ = E / _ρ_liq
     H = conditions.shf + hd_sfc * (E0 - E)
     LH = conditions.lhf * r_ae / (r_sfc + r_ae)
-    return (lhf = LH, shf = H, vapor_flux = Ẽ, r_ae = r_ae)
+    return (lhf = LH, shf = H, vapor_flux = Ẽ, r_ae = r_ae,r_sfc=r_sfc,E0=E0, ρ_liq =_ρ_liq)
 end
 
 """

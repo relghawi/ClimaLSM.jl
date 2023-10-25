@@ -239,7 +239,7 @@ sol = SciMLBase.solve(
     saveat = saveat,
 )
 
-
+# run global ARGS = ["save"] in julia REPL
 # Run script with comand line argument "save" to save model output to CSV
 if length(ARGS) ≥ 1 && ARGS[1] == "save"
     # Formats fields as semicolon seperated strings
@@ -278,7 +278,7 @@ if length(ARGS) ≥ 1 && ARGS[1] == "save"
     # Write all data to a csv file
     savedir=@__DIR__
     writedlm(joinpath(savedir, "model_output.csv"), timestamps, ',')
-    @info "Saved model output to $(savedir)model_output.csv"
+    @info "Saved model output to $(savedir)/model_output.csv"
 end
 
 rm(joinpath(savedir, "Artifacts.toml"))
