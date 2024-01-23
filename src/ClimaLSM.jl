@@ -1,6 +1,6 @@
 module ClimaLSM
 using DocStringExtensions
-
+using Hyb_LSM
 using ClimaCore
 import ClimaCore: Fields, Spaces
 

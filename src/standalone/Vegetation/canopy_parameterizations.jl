@@ -862,6 +862,42 @@ function medlyn_conductance(
     return gs
 end
 
+using JLD2
+using Flux
+using DataFrames: DataFrame, DataFrameRow
+
+predictors = [:T_air_out, :LAI_out, :An,:q_air_out, :c_co2_air_out,:P_air_out]
+latents=:transpiration
+target = :gs
+x = [:evaporation,:LAI_out, :aerodynamic_resistance,:T_air_out,:P_air_out,:ρ_l_cloud] # Assuming as independent variables
+hybrid_model = LinearHybridModel(predictors, x, 1, 128)
+model_state_path = "/Net/Groups/BGI/scratch/relghawi/Hack_attrib/Hyb_LSM/src/ClimaLand_examples/hybrid_climaLSM.jld2"
+model_state = JLD2.load(model_state_path, "model_state")
+
+Flux.loadmodel!(hybrid_model, model_state)
+#:T_air_out, :LAI_out, :An,:q_air_out, :c_co2_air_out,:P_air_out
+
+function medlyn_conductance(
+        T_air::FT,
+        LAI::FT,
+        q_air::FT,
+        P_air::FT,
+        An::FT,
+        ca::FT,
+        Hyb::Bool
+    ) where {FT}
+    if Hyb
+        d_vali2 = [T_air, LAI, An, q_air, ca, P_air]
+        column_names = [:T_air_out, :LAI_out, :An,:q_air_out, :c_co2_air_out,:P_air_out]
+        data_matrix = reshape(d_vali2, 1, :)
+
+        data_df = DataFrame(data_matrix, Symbol.(column_names))
+
+        α, ŷ = hybrid_model(data_df, Val(:infer))
+        gs = α[1]        
+    end
+    return gs    
+end
 """
     penman_monteith(
         Δ::FT, # Rate of change of saturation vapor pressure with air temperature. (Pa K−1)  

@@ -1,4 +1,5 @@
 module Canopy
+using Hyb_LSM
 using DocStringExtensions
 using Thermodynamics
 using ClimaLSM
@@ -430,12 +431,22 @@ function ClimaLSM.make_update_aux(
         β = p.canopy.hydraulics.β
         medlyn_factor = p.canopy.conductance.medlyn_term
         gs = p.canopy.conductance.gs
+        T_air_out = p.canopy.conductance.T_air_out
+        q_air_out = p.canopy.conductance.q_air_out
+        c_co2_air_out = p.canopy.conductance.c_co2_air_out
+        LAI_out = p.canopy.conductance.LAI_out
+        P_air_out=p.canopy.conductance.P_air_out
+        transpiration = p.canopy.conductance.transpiration
+        surface_resistance =  p.canopy.conductance.surface_resistance
+        aerodynamic_resistance =  p.canopy.conductance.aerodynamic_resistance
+        evaporation=  p.canopy.conductance.evaporation
         An = p.canopy.photosynthesis.An
         GPP = p.canopy.photosynthesis.GPP
         Rd = p.canopy.photosynthesis.Rd
         ψ = p.canopy.hydraulics.ψ
         ϑ_l = Y.canopy.hydraulics.ϑ_l
         fa = p.canopy.hydraulics.fa
+        ρ_l_cloud = p.canopy.conductance.ρ_l_cloud
 
         # Current atmospheric conditions
         θs = p.drivers.θs
@@ -583,7 +594,13 @@ function ClimaLSM.make_update_aux(
             R,
         )
         @. GPP = compute_GPP(An, K, LAI, Ω)
-        @. gs = medlyn_conductance(g0, Drel, medlyn_factor, An, c_co2_air)
+        #@. gs = medlyn_conductance(g0, Drel, medlyn_factor, An, c_co2_air)
+        @. gs = medlyn_conductance(T_air, LAI, q_air,P_air, An, c_co2_air,true)
+        @. T_air_out = T_air
+        @. q_air_out= q_air
+        @. c_co2_air_out = c_co2_air
+        @. LAI_out= LAI
+        @. P_air_out= P_air
         # update autotrophic respiration
         h_canopy = hydraulics.compartment_surfaces[end]
         @. Ra = compute_autrophic_respiration(
@@ -594,7 +611,23 @@ function ClimaLSM.make_update_aux(
             GPP,
             Rd,
             β,
-            h_canopy,
+            h,
+        )
+        # Compute transpiration using T_canopy
+        (canopy_transpiration, shf, lhf,r_ae,r_sfc,E0,ρ_liq) =
+            canopy_surface_fluxes(canopy.atmos, canopy, Y, p, t)
+        transpiration .= canopy_transpiration
+        surface_resistance .= r_sfc
+        aerodynamic_resistance .= r_ae
+        evaporation .= E0
+        ρ_l_cloud .= ρ_liq
+
+        # Transpiration is per unit ground area, not leaf area (mult by LAI)
+        fa.:($i_end) .= PlantHydraulics.transpiration_per_ground_area(
+            hydraulics.transpiration,
+            Y,
+            p,
+            t,
         )
     end
     return update_aux!
@@ -629,8 +662,59 @@ function make_compute_exp_tendency(
     end
     return compute_exp_tendency!
 end
-function ClimaLSM.get_drivers(model::CanopyModel)
-    return (model.atmos, model.radiation)
+
+"""
+    canopy_surface_fluxes(atmos::PrescribedAtmosphere{FT},
+                          model::CanopyModel,
+                          Y,
+                          p,
+                          t::FT) where {FT}
+
+Computes canopy transpiration using Monin-Obukhov Surface Theory,
+the prescribed atmospheric conditions, and the canopy conductance.
+
+Please note that in the future the SurfaceFluxes.jl code will compute
+fluxes taking into account the canopy conductance, so that
+what is returned by `surface_fluxes` is correct. At present, it does not,
+so we are adjusting for it after the fact here in both ET and LHF.
+"""
+function canopy_surface_fluxes(
+    atmos::PrescribedAtmosphere{FT},
+    model::CanopyModel,
+    Y,
+    p,
+    t::FT,
+) where {FT}
+    conditions = surface_fluxes(atmos, model, Y, p, t) # per unit m^2 of leaf
+    return conditions.vapor_flux, conditions.shf, conditions.lhf,conditions.r_ae,conditions.r_sfc, conditions.E0, conditions.ρ_liq
+end
+
+"""
+    ClimaLSM.surface_resistance(
+        model::CanopyModel{FT},
+        Y,
+        p,
+        t,
+    ) where {FT}
+Returns the surface resistance field of the
+`CanopyModel` canopy.
+"""
+function ClimaLSM.surface_resistance(model::CanopyModel{FT}, Y, p, t) where {FT}
+    earth_param_set = model.parameters.earth_param_set
+    R = FT(LSMP.gas_constant(earth_param_set))
+    ρ_liq = FT(LSMP.ρ_cloud_liq(earth_param_set))
+    P_air::FT = model.atmos.P(t)
+    T_air::FT = model.atmos.T(t)
+    leaf_conductance = p.canopy.conductance.gs
+    canopy_conductance =
+        upscale_leaf_conductance.(
+            leaf_conductance,
+            p.canopy.hydraulics.area_index.leaf,
+            T_air,
+            R,
+            P_air,
+        )
+    return 1 ./ canopy_conductance # [s/m]
 end
 
 

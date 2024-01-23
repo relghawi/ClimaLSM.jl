@@ -276,9 +276,9 @@ function turbulent_fluxes_at_a_point(
     E0::FT = SurfaceFluxes.evaporation(surface_flux_params, sc, conditions.Ch)
     E = E0 * r_ae / (r_sfc + r_ae)
     Ẽ = E / _ρ_liq
-    H = -ρ_air * cp_m * ΔT / r_ae
-    LH = _LH_v0 * E
-    return (lhf = LH, shf = H, vapor_flux = Ẽ, r_ae = r_ae)
+    H = conditions.shf + hd_sfc * (E0 - E)
+    LH = conditions.lhf * r_ae / (r_sfc + r_ae)
+    return (lhf = LH, shf = H, vapor_flux = Ẽ, r_ae = r_ae,r_sfc=r_sfc,E0=E0, ρ_liq =_ρ_liq)
 end
 
 """
