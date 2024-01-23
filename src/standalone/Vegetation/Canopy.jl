@@ -1,4 +1,5 @@
 module Canopy
+using Hyb_LSM
 using DocStringExtensions
 using Thermodynamics
 using ClimaLSM
@@ -575,7 +576,8 @@ function ClimaLSM.make_update_aux(
                 Rd,
             )
         @. GPP = compute_GPP(An, K, LAI, Ω)
-        @. gs = medlyn_conductance(g0, Drel, medlyn_factor, An, c_co2_air)
+        #@. gs = medlyn_conductance(g0, Drel, medlyn_factor, An, c_co2_air)
+        @. gs = medlyn_conductance(T_air, LAI, q_air,P_air, An, c_co2_air,true)
         @. T_air_out = T_air
         @. q_air_out= q_air
         @. c_co2_air_out = c_co2_air
